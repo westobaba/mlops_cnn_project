@@ -1,37 +1,32 @@
-import mlflow.pytorch
+import torch
+import torch.nn as nn
 from fastapi import FastAPI, File, UploadFile
 from PIL import Image
 import io
 import torchvision.transforms as transforms
-import torch
+
+from src.model import SimpleCNN  # your CNN model class
 
 app = FastAPI(title="CNN Image Classification API")
 
 # -----------------------------
-# Helper to load the latest MLflow model
+# Define class labels
 # -----------------------------
-def load_latest_model(experiment_name="Default", artifact_name="cnn_model"):
-    # Get experiment
-    client = mlflow.tracking.MlflowClient()
-    experiment = client.get_experiment_by_name(experiment_name)
-    if experiment is None:
-        raise ValueError(f"Experiment '{experiment_name}' does not exist.")
+class_names = [
+    "airplane", "automobile", "bird", "cat", "deer",
+    "dog", "frog", "horse", "ship", "truck"
+]  # Adjust according to your dataset
 
-    # Get latest run
-    runs = client.list_run_infos(experiment.experiment_id)
-    if not runs:
-        raise ValueError(f"No runs found in experiment '{experiment_name}'.")
-
-    latest_run_id = runs[-1].run_id  # newest run is last
-    model_uri = f"runs:/{latest_run_id}/{artifact_name}"
-
-    print(f"🔹 Loading model from run_id: {latest_run_id}")
-    model = mlflow.pytorch.load_model(model_uri)
+# -----------------------------
+# Load model
+# -----------------------------
+def load_model():
+    model = SimpleCNN()
+    model.load_state_dict(torch.load("cnn_model.pth", map_location="cpu"))
     model.eval()
     return model
 
-# Load model once at startup
-model = load_latest_model()
+model = load_model()
 
 # -----------------------------
 # Prediction endpoint
@@ -49,6 +44,7 @@ async def predict(file: UploadFile = File(...)):
 
     with torch.no_grad():
         outputs = model(img_tensor)
-        _, predicted = torch.max(outputs, 1)
+        _, predicted_idx = torch.max(outputs, 1)
     
-    return {"class": str(predicted.item())}
+    predicted_class = class_names[predicted_idx.item()]
+    return {"class": predicted_class}

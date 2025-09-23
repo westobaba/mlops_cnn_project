@@ -2,27 +2,25 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1-mesa-dev \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
-RUN pip install --upgrade pip
+RUN pip install --no-cache-dir --upgrade pip
 
-# Install Python packages
+# Install PyTorch CPU + torchvision
 RUN pip install --no-cache-dir \
-    torch \
-    torchvision \
-    mlflow \
-    fastapi \
-    uvicorn \
-    pillow \
-    tqdm
+    torch==2.0.0+cpu torchvision==0.15.1+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
 
-# Copy project files
+# Install other packages including python-multipart for FastAPI file uploads
+RUN pip install --no-cache-dir fastapi uvicorn pillow tqdm python-multipart "numpy<2"
+
+# Copy project files including cnn_model.pth
 COPY . .
 
 EXPOSE 8000
