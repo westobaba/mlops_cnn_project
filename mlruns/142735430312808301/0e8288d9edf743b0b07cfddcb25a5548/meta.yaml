@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/SKRIMGADGETS/Desktop/mlops/mlops_cnn_project/mlruns/142735430312808301/0e8288d9edf743b0b07cfddcb25a5548/artifacts
+end_time: 1758567262651
+entry_point_name: ''
+experiment_id: '142735430312808301'
+lifecycle_stage: active
+run_id: 0e8288d9edf743b0b07cfddcb25a5548
+run_name: abundant-foal-187
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1758566559176
+status: 3
+tags: []
+user_id: SKRIMGADGETS

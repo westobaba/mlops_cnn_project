@@ -1,0 +1,6 @@
+artifact_location: file:///C:/Users/SKRIMGADGETS/Desktop/mlops/mlops_cnn_project/mlruns/142735430312808301
+creation_time: 1758566558374
+experiment_id: '142735430312808301'
+last_update_time: 1758566558374
+lifecycle_stage: active
+name: cnn_cifar10_experiment

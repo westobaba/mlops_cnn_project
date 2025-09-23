@@ -1,1 +1,1 @@
-# mlops_cnn_project
+# MLOps CNN Project
