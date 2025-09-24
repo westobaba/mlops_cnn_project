@@ -11,37 +11,31 @@ jobs:
     name: Deploy to EC2
     runs-on: ubuntu-latest
     environment:
-      name: mlops-ec2-staging  # use your environment
+      name: mlops-ec2-staging
+
     steps:
       # 1. Checkout the repo
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Set up SSH for EC2
+      # 2. Setup SSH for EC2
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H "${{ vars.EC2_HOST_IP }}" >> ~/.ssh/known_hosts
-          echo "SSH setup complete"
 
-      # 3. Deploy script on EC2
-      - name: Run deployment on EC2
+      # 3. Run deployment on EC2
+      - name: Deploy app
         run: |
-          echo "Starting deployment..."
-          ssh -v -i ~/.ssh/id_rsa ec2-user@${{ vars.EC2_HOST_IP }} << 'EOF'
-            echo "Connected to EC2 as $(whoami)"
-            cd /home/ec2-user/mlops_project || exit
-            echo "Pulling latest code..."
+          ssh -i ~/.ssh/id_rsa ubuntu@${{ vars.EC2_HOST_IP }} << 'EOF'
+            cd /home/ubuntu/mlops_project || exit
             git pull origin main
-            echo "Stopping any running containers..."
             docker-compose down
-            echo "Building and starting containers..."
             docker-compose up -d --build
-            echo "Deployment finished on EC2"
           EOF
 
-      # 4. Optional: Notify on successful deployment
+      # 4. Notify success
       - name: Deployment success
-        run: echo "Deployment completed on EC2!"
+        run: echo "✅ Deployment completed on EC2!"
