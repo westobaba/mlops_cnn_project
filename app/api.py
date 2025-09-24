@@ -4,6 +4,8 @@ from fastapi import FastAPI, File, UploadFile
 from PIL import Image
 import io
 import torchvision.transforms as transforms
+import boto3
+import os
 
 from src.model import SimpleCNN  # your CNN model class
 
@@ -17,16 +19,43 @@ class_names = [
     "dog", "frog", "horse", "ship", "truck"
 ]  # Adjust according to your dataset
 
+
+# -----------------------------
+# Download model from S3 if not local
+# -----------------------------
+def download_from_s3(bucket_name, object_name, file_path):
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    )
+    if not os.path.exists(file_path):
+        try:
+            s3.download_file(bucket_name, object_name, file_path)
+            print(f"☁️ Downloaded {object_name} from s3://{bucket_name} to {file_path}")
+        except Exception as e:
+            print(f"❌ Could not download model from S3: {e}")
+
+
 # -----------------------------
 # Load model
 # -----------------------------
-def load_model():
+def load_model(bucket_name="your-s3-bucket", object_name="cnn_model.pth"):
+    model_path = "cnn_model.pth"
+
+    # Download from S3 if missing
+    download_from_s3(bucket_name, object_name, model_path)
+
     model = SimpleCNN()
-    model.load_state_dict(torch.load("cnn_model.pth", map_location="cpu"))
+    model.load_state_dict(torch.load(model_path, map_location="cpu"))
     model.eval()
     return model
 
-model = load_model()
+
+# Load model once at startup
+model = load_model(bucket_name="your-s3-bucket")
+
 
 # -----------------------------
 # Prediction endpoint
