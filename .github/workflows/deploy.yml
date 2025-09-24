@@ -1,4 +1,4 @@
-name: CI/CD - Train, Upload to S3, Push to ECR, Deploy to EC2
+name: CI/CD - Train, Upload to S3, Push to ECR
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  train-and-deploy:
+  train-and-push:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: "3.10"
 
       # 3. Install dependencies
       - name: Install dependencies
@@ -34,7 +34,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_SECRET_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1   # 👈 fixed
 
       # 5. Train model and upload to S3
       - name: Train model and upload to S3
@@ -44,7 +44,7 @@ jobs:
       # 6. Log in to ECR
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          aws ecr get-login-password --region us-east-1 | \
           docker login --username AWS --password-stdin 049415017383.dkr.ecr.us-east-1.amazonaws.com
 
       # 7. Build and push Docker image
@@ -53,16 +53,3 @@ jobs:
           IMAGE_URI=049415017383.dkr.ecr.us-east-1.amazonaws.com/cnn_mlops:latest
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
-
-      # 8. (Optional) Deploy to EC2
-      # Uncomment when EC2 setup is ready
-      # - name: Deploy on EC2
-      #   run: |
-      #     ssh -i ~/.ssh/id_rsa ec2-user@${{ secrets.EC2_HOST_IP }} << 'EOF'
-      #       docker pull 049415017383.dkr.ecr.us-east-1.amazonaws.com/cnn_mlops:latest
-      #       docker stop mlops_app || true
-      #       docker rm mlops_app || true
-      #       docker run -d -p 8000:8000 --name mlops_app \
-      #         -e S3_BUCKET=cnnmlops \
-      #         049415017383.dkr.ecr.us-east-1.amazonaws.com/cnn_mlops:latest
-      #     EOF
