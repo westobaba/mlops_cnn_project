@@ -9,6 +9,7 @@ on:
 jobs:
   train-and-deploy:
     runs-on: ubuntu-latest
+    environment: mlops-ec2-staging  # Add this line to reference the environment
 
     steps:
       # 1. Checkout the repo
@@ -32,7 +33,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_SECRET_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
