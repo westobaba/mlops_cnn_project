@@ -1,3 +1,55 @@
+name: CI/CD - Train, Upload to S3, Push to ECR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  # -------------------------
+  # Build, train, push (GitHub-hosted runner)
+  # -------------------------
+  train-and-deploy:
+    runs-on: ubuntu-latest
+    environment: mlops-ec2-staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install boto3 torch torchvision tqdm
+
+      - name: Debug secrets and STS endpoint
+        run: |
+          echo "AWS_REGION: ${{ secrets.AWS_REGION }}"
+          curl -v https://sts.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_SECRET_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Train model and upload to S3
+        run: |
+          python -m src.train
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_LOGIN_URI }}
+
       - name: Build and push Docker image
         run: |
           IMAGE_URI=${{ secrets.AWS_ECR_LOGIN_URI }}:latest
@@ -5,7 +57,7 @@
           docker push $IMAGE_URI
 
   # -------------------------
-  # Self-hosted runner on EC2
+  # Deploy on EC2 (self-hosted runner)
   # -------------------------
   deploy-on-ec2:
     runs-on: [self-hosted, ec2]   # match your EC2 runner labels
