@@ -1,60 +1,3 @@
-name: CI/CD - Train, Upload to S3, Push to ECR
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  train-and-deploy:
-    runs-on: ubuntu-latest
-    environment: mlops-ec2-staging
-
-    steps:
-      # 1. Checkout the repo
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # 2. Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
-
-      # 3. Install dependencies
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install boto3 torch torchvision tqdm
-
-      # 4. Debug secrets and STS endpoint
-      - name: Debug secrets and STS endpoint
-        run: |
-          echo "AWS_REGION: ${{ secrets.AWS_REGION }}"
-          curl -v https://sts.${{ secrets.AWS_REGION }}.amazonaws.com
-
-      # 5. Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_SECRET_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      # 6. Train model and upload to S3
-      - name: Train model and upload to S3
-        run: |
-          python -m src.train
-
-      # 7. Log in to ECR
-      - name: Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-          docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_LOGIN_URI }}
-
-      # 8. Build and push Docker image
       - name: Build and push Docker image
         run: |
           IMAGE_URI=${{ secrets.AWS_ECR_LOGIN_URI }}:latest
@@ -65,7 +8,7 @@ jobs:
   # Self-hosted runner on EC2
   # -------------------------
   deploy-on-ec2:
-    runs-on: self-hosted   # label of your EC2 runner
+    runs-on: [self-hosted, ec2]   # match your EC2 runner labels
     needs: train-and-deploy
     environment: mlops-ec2-staging
 
@@ -89,6 +32,8 @@ jobs:
 
       - name: Run container on EC2
         run: |
+          IMAGE_URI=${{ secrets.AWS_ECR_LOGIN_URI }}:latest
           docker stop mlops_app || true
           docker rm mlops_app || true
+          docker system prune -af || true
           docker run -d --name mlops_app -p 8000:8000 $IMAGE_URI
