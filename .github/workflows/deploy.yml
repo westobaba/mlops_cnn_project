@@ -60,3 +60,35 @@ jobs:
           IMAGE_URI=${{ secrets.AWS_ECR_LOGIN_URI }}:latest
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
+
+  # -------------------------
+  # Self-hosted runner on EC2
+  # -------------------------
+  deploy-on-ec2:
+    runs-on: self-hosted   # label of your EC2 runner
+    needs: train-and-deploy
+    environment: mlops-ec2-staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_SECRET_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Pull latest Docker image from ECR
+        run: |
+          IMAGE_URI=${{ secrets.AWS_ECR_LOGIN_URI }}:latest
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_LOGIN_URI }}
+          docker pull $IMAGE_URI
+
+      - name: Run container on EC2
+        run: |
+          docker stop mlops_app || true
+          docker rm mlops_app || true
+          docker run -d --name mlops_app -p 8000:8000 $IMAGE_URI
